@@ -8,7 +8,15 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <regex>
 
+struct CommandNumPipe {
+    std::string cmd;
+    int numPipe;
+};
+
+void removeLeadingTrailingSpace(std::string &str);
 std::vector<std::string> split(const std::string &s, char delim);
+std::vector<CommandNumPipe> splitLineCmd(const std::string &s);
 
 #endif //NP_PROJECT_UTILS_H
