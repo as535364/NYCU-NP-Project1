@@ -103,3 +103,10 @@ include/*
 lib/*
 bin/*
 test/test_runner
+
+# vscode
+.vscode
+
+# binary files
+*.o
+npshell

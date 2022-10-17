@@ -9,6 +9,6 @@
 #include <sstream>
 #include <iostream>
 
-std::vector<std::string> split(const std::string &str, char delimiter);
+std::vector<std::string> split(const std::string &s, char delim);
 
 #endif //NP_PROJECT_UTILS_H
