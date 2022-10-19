@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string>
+#include <array>
 #include <vector>
+#include <list>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "npshell.h"
 #include "utils.h"
 
 // find file exist in path
@@ -14,59 +17,150 @@ bool findExist(const std::string &cmd){
     });
 }
 
-void forkProcess(const std::string &cmdArg){
-    pid_t chilePid = fork();
-    while(chilePid == -1){
-        chilePid = fork();
+// find out where is the pipeFd for output
+std::array<int, 2> findPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt){
+    auto it = std::find_if(pipeFdList.begin(), pipeFdList.end(), [&lineCnt](const pipeFdItem &item){
+        return item.line == lineCnt;
+    });
+    if(it != pipeFdList.end()){
+        std::array<int, 2> pipeFd = {it->pipeFd[0], it->pipeFd[1]};
+        pipeFdList.erase(it);
+        return pipeFd;
     }
-    if(chilePid == 0){
-        std::vector<std::string> args = split(cmdArg, ' ');
-        char *argv[args.size() + 1];
-        for(size_t i = 0; i < args.size(); ++i){
-            argv[i] = const_cast<char *>(args[i].c_str());
+    return {-1, -1};
+}
+
+// number pipe: insert pipeFd to proper pos in list
+std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt, size_t numPipe) {
+    int pipeFd[2];
+    auto it = pipeFdList.begin();
+    while(it != pipeFdList.end() && it->line < lineCnt + numPipe)
+        it++;
+    if(it -> line != lineCnt + numPipe) {
+        pipe(pipeFd);
+        pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt + numPipe));
+    } else { // if pipeFd already exist, use it to output
+        std::cerr << "found: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
+        pipeFd[0] = it->pipeFd[0];
+        pipeFd[1] = it->pipeFd[1];
+    }
+    std::cerr << "\tpipeFdList: ";
+    for(pipeFdItem &item : pipeFdList){
+        std::cerr << item.line << ' ' << item.pipeFd[0] << ' ' << item.pipeFd[1]  << ", ";
+    }
+    std::cerr << std::endl;
+    return std::array<int, 2>{pipeFd[0], pipeFd[1]};
+}
+
+void forkProcess(const std::vector<std::string> &cmdArg,
+                 std::array<int, 2> &pipeInFd, std::array<int, 2> &pipeOutFd, PipeType type){
+    pid_t childPid;
+    while((childPid = fork()) == -1) {}
+
+    if(childPid == 0){
+        // child process
+        char *argv[cmdArg.size() + 1];
+        for(size_t i = 0; i < cmdArg.size(); ++i){
+            argv[i] = const_cast<char *>(cmdArg[i].c_str());
         }
-        argv[args.size()] = nullptr;
+        argv[cmdArg.size()] = nullptr;
+
+        std::cerr << "\ttype: " << type << std::endl;
+        if(type & PipeType::PIPE_IN){
+            std::cerr << "\tPIPE_IN: " << argv[0] << " used " << pipeInFd[0] << std::endl;
+            dup2(pipeInFd[0], STDIN_FILENO);
+            close(pipeInFd[1]);
+        }
+        if(type & PipeType::PIPE_OUT){
+            std::cerr << "\tPIPE_OUT: " << argv[0] << " used " << pipeOutFd[1] << std::endl;
+            dup2(pipeOutFd[1], STDOUT_FILENO);
+            close(pipeOutFd[0]);
+        }
+
         execvp(argv[0], argv);
         exit(0);
     } else {
-        waitpid(chilePid, nullptr, 0);
+        // parent process
+        if(type & PipeType::PIPE_IN){
+            close(pipeInFd[0]);
+            close(pipeInFd[1]);
+        }
+        if(type & PipeType::PIPE_OUT){
+//            close(pipeOutFd[1]);
+        }
+        waitpid(childPid, nullptr, 0);
     }
 }
 
-void processCmd(const std::string &inputCmd) {
+void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdItem> &pipeFdList) {
     std::vector<CommandNumPipe> lineCmds = splitLineCmd(inputCmd);
     // number piped
     for(auto &lineCmd : lineCmds) {
-//        std::cerr << "lineCmd: " << lineCmd.cmd << ' ' << lineCmd.numPipe << std::endl;
-        // inline piped
-        for(const auto& cmd : split(lineCmd.cmd, '|')) {
-//            std::cerr << "cmd: " << cmd << std::endl;
-            std::vector<std::string> cmdArg =  split(cmd, ' ');
-            if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
-                const char *env_p = getenv(cmdArg[1].c_str());
-                if(env_p != nullptr){
-                    std::cout << env_p << std::endl;
-                }
-            } else if(cmdArg[0] == "setenv" && cmdArg.size() == 3) {
-                setenv(cmdArg[1].c_str(), cmdArg[2].c_str(), 1);
-            } else if(cmdArg[0] == "exit") {
-                exit(EXIT_SUCCESS);
-            } else if(findExist(cmdArg[0])){
-                forkProcess(cmd);
+        lineCnt++;
+        std::cerr << lineCnt << " lineCmd: " << lineCmd.cmd << " |" << lineCmd.numPipe << std::endl;
+        std::array<int, 2> pipeInFd = findPipeFd(pipeFdList, lineCnt);
+        std::array<int, 2> pipeOutFd = {-1, -1};
+
+        if(lineCmd.numPipe){
+            // generate pipe and insert into list in correct pos
+            pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
+            if(pipeInFd[0] != -1 && pipeInFd[1] != -1) {
+
+                forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, PIPE_INOUT);
             } else {
-                std::cerr << "Unknown command: " << '[' << cmdArg[0] << ']' << std::endl;
+                forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, PipeType::PIPE_OUT);
             }
         }
+        else {
+            if(pipeInFd[0] != -1 && pipeInFd[1] != -1) {
+                forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, PipeType::PIPE_IN);
+            } else {
+//                std::cerr << "PIPE_NONE: " << lineCmd.cmd << std::endl;
+                forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, PipeType::PIPE_NONE);
+            }
+        }
+
+
+        // inline piped
+//        std::vector<std::string> inlinePipedCmd = split(lineCmd.cmd, '|');
+//        for(size_t idx = 0; idx < inlinePipedCmd.size(); ++idx){
+//            std::string cmd = inlinePipedCmd[idx];
+//            std::cerr << "cmd: " << inlinePipedCmd.size() << ' ' << cmd << std::endl;
+//            std::vector<std::string> cmdArg =  split(cmd, ' ');
+//            if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
+//                const char *env_p = getenv(cmdArg[1].c_str());
+//                if(env_p != nullptr) {
+//                    std::cout << env_p << std::endl;
+//                }
+//            } else if(cmdArg[0] == "setenv" && cmdArg.size() == 3) {
+//                setenv(cmdArg[1].c_str(), cmdArg[2].c_str(), 1);
+//            } else if(cmdArg[0] == "exit") {
+//                exit(EXIT_SUCCESS);
+//            } else if(findExist(cmdArg[0])){
+//                if (inlinePipedCmd.size() > 1) {
+//                    prevPipe[0] = pipefd[0];
+//                    prevPipe[1] = pipefd[1];
+//                    pipe(pipefd);
+//                }
+//                forkProcess(cmdArg, prevPipe, pipefd,inlinePipedCmd.size() > 1,
+//                            idx, inlinePipedCmd.size());
+//            } else {
+//                std::cerr << "Unknown command: " << '[' << cmdArg[0] << ']' << std::endl;
+//            }
+//        }
     }
 }
 
 int main() {
     setenv("PATH","bin:.", 1);
     std::string s;
+    size_t lineCnt = 0;
+    std::list<pipeFdItem> pipeFdList;
 
     std::cout << "% ";
     while(std::getline(std::cin, s)){
-        processCmd(s);
+        if(!s.empty())
+            processCmd(s, lineCnt, pipeFdList);
         std::cout << "% ";
     }
     return 0;
