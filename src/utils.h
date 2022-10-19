@@ -11,9 +11,10 @@
 #include <regex>
 
 struct CommandNumPipe {
-    CommandNumPipe(std::string cmd, size_t numPipe) : cmd(cmd), numPipe(numPipe) {}
+    CommandNumPipe(std::string cmd, size_t numPipe, bool errPipe) : cmd(cmd), numPipe(numPipe), errPipe(errPipe){}
     std::string cmd;
     size_t numPipe;
+    bool errPipe;
 };
 
 void removeLeadingTrailingSpace(std::string &str);

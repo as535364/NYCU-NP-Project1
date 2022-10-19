@@ -17,8 +17,7 @@ struct pipeFdItem {
 enum PipeType {
     PIPE_IN = 1,
     PIPE_OUT = 2,
-    PIPE_INOUT = 4,
-    PIPE_OUTERR = 8,
+    PIPE_ERR = 4,
     PIPE_NONE = 0
 };
 
