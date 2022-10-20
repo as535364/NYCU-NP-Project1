@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <list>
+#include <ctime>
 #include <unistd.h>
 #include <sys/wait.h>
 #include "npshell.h"
@@ -55,36 +56,34 @@ std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCn
 void forkProcess(const std::vector<std::string> &cmdArg,
                  std::array<int, 2> &pipeInFd, std::array<int, 2> &pipeOutFd, PipeType type){
     pid_t childPid;
-    while((childPid = fork()) == -1) {}
+    while((childPid = fork()) == -1) { usleep(100); }
 
-    if(childPid == 0){
-        // child process
+    if(childPid == 0){ // child process
         char *argv[cmdArg.size() + 1];
         for(size_t i = 0; i < cmdArg.size(); ++i){
             argv[i] = const_cast<char *>(cmdArg[i].c_str());
         }
         argv[cmdArg.size()] = nullptr;
 
-        std::cerr << "\ttype: " << type << std::endl;
+//        std::cerr << "\ttype: " << type << std::endl;
         if(type & PipeType::PIPE_IN){
-            std::cerr << "\tPIPE_IN: " << argv[0] << " used " << pipeInFd[0] << std::endl;
+//            std::cerr << "\tPIPE_IN: \"" << argv[0] << "\" used " << pipeInFd[0] << std::endl;
             dup2(pipeInFd[0], STDIN_FILENO);
             close(pipeInFd[1]);
         }
         if(type & PipeType::PIPE_OUT){
-            std::cerr << "\tPIPE_OUT: " << argv[0] << " used " << pipeOutFd[1] << std::endl;
+//            std::cerr << "\tPIPE_OUT: \"" << argv[0] << "\" used " << pipeOutFd[1] << std::endl;
             dup2(pipeOutFd[1], STDOUT_FILENO);
             close(pipeOutFd[0]);
         }
         if(type & PipeType::PIPE_ERR){
-            std::cerr << "\tPIPE_ERR: " << argv[0] << " used " << pipeOutFd[1] << std::endl;
+//            std::cerr << "\tPIPE_ERR: \"" << argv[0] << "\" used " << pipeOutFd[1] << std::endl;
             dup2(pipeOutFd[1], STDERR_FILENO);
             // close(pipeOutFd[0]); it is closed when PIPE_OUT
         }
         execvp(argv[0], argv);
         exit(0);
-    } else {
-        // parent process
+    } else { // parent process
         if(type & PipeType::PIPE_IN){
             close(pipeInFd[0]);
             close(pipeInFd[1]);
@@ -92,7 +91,8 @@ void forkProcess(const std::vector<std::string> &cmdArg,
         if(type & PipeType::PIPE_OUT){
 //            close(pipeOutFd[1]);
         }
-        waitpid(childPid, nullptr, 0);
+        if((type & PipeType::PIPE_OUT) == 0)
+            waitpid(childPid, nullptr, 0);
     }
 }
 
@@ -101,52 +101,63 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
     // number piped
     for(auto &lineCmd : lineCmds) {
         lineCnt++;
-        std::cerr << lineCnt << " lineCmd: " << lineCmd.cmd << " |" << lineCmd.numPipe << std::endl;
-        std::array<int, 2> pipeInFd = findPipeFd(pipeFdList, lineCnt);
-        std::array<int, 2> pipeOutFd = {-1, -1};
-
-        PipeType type = PIPE_NONE;
-        if(lineCmd.numPipe){
-            // generate pipe and insert into list in correct pos
-            pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
-            type = static_cast<PipeType>(type | PipeType::PIPE_OUT);
-        }
-        if(lineCmd.errPipe){
-            type = static_cast<PipeType>(type | PipeType::PIPE_ERR);
-        }
-        if(pipeInFd[0] != -1 && pipeInFd[1] != -1){
-            std::cerr << "\tOuter PIPE_IN: " << std::endl;
-            type = static_cast<PipeType>(type | PipeType::PIPE_IN);
-        }
-        forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, type);
+//        std::cerr << lineCnt << " lineCmd: " << lineCmd.cmd << " |" << lineCmd.numPipe << std::endl;
+//        std::array<int, 2> pipeInFd = findPipeFd(pipeFdList, lineCnt);
+//        std::array<int, 2> pipeOutFd = {-1, -1};
+//
+//        PipeType type = PIPE_NONE;
+//        if(lineCmd.numPipe){
+//            // generate pipe and insert into list in correct pos
+//            pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
+//            type = static_cast<PipeType>(type | PipeType::PIPE_OUT);
+//        }
+//        if(lineCmd.errPipe){
+//            type = static_cast<PipeType>(type | PipeType::PIPE_ERR);
+//        }
+//        if(pipeInFd[0] != -1 && pipeInFd[1] != -1){
+//            std::cerr << "\tOuter PIPE_IN: " << std::endl;
+//            type = static_cast<PipeType>(type | PipeType::PIPE_IN);
+//        }
+//        forkProcess(split(lineCmd.cmd, ' '), pipeInFd, pipeOutFd, type);
 
         // inline piped
-//
-//        for(size_t idx = 0; idx < inlinePipedCmd.size(); ++idx){
-//            std::string cmd = inlinePipedCmd[idx];
-//            std::cerr << "cmd: " << inlinePipedCmd.size() << ' ' << cmd << std::endl;
-//            std::vector<std::string> cmdArg =  split(cmd, ' ');
-//            if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
-//                const char *env_p = getenv(cmdArg[1].c_str());
-//                if(env_p != nullptr) {
-//                    std::cout << env_p << std::endl;
-//                }
-//            } else if(cmdArg[0] == "setenv" && cmdArg.size() == 3) {
-//                setenv(cmdArg[1].c_str(), cmdArg[2].c_str(), 1);
-//            } else if(cmdArg[0] == "exit") {
-//                exit(EXIT_SUCCESS);
-//            } else if(findExist(cmdArg[0])){
-//                if (inlinePipedCmd.size() > 1) {
-//                    prevPipe[0] = pipefd[0];
-//                    prevPipe[1] = pipefd[1];
-//                    pipe(pipefd);
-//                }
-//                forkProcess(cmdArg, prevPipe, pipefd,inlinePipedCmd.size() > 1,
-//                            idx, inlinePipedCmd.size());
-//            } else {
-//                std::cerr << "Unknown command: " << '[' << cmdArg[0] << ']' << std::endl;
-//            }
-//        }
+        std::vector<std::string> inlinePipedCmd = split(lineCmd.cmd, '|');
+        std::array<int, 2> prevPipe = {-1, -1}, nextPipe = {-1, -1};
+        for(auto it = inlinePipedCmd.begin(); it != inlinePipedCmd.end(); ++it){
+            std::string cmd = *it;
+            std::vector<std::string> cmdArg =  split(cmd, ' ');
+            if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
+                const char *env_p = getenv(cmdArg[1].c_str());
+                if(env_p != nullptr)
+                    std::cout << env_p << std::endl;
+            } else if(cmdArg[0] == "setenv" && cmdArg.size() == 3) {
+                setenv(cmdArg[1].c_str(), cmdArg[2].c_str(), 1);
+            } else if(cmdArg[0] == "exit") {
+                exit(EXIT_SUCCESS);
+            } else if(findExist(cmdArg[0])){
+                PipeType type = PIPE_NONE;
+                // need pipe
+                if (inlinePipedCmd.size() > 1) {
+                    if(it == inlinePipedCmd.begin()){
+//                        std::cerr << "\tFirst: " << cmd << " " << std::endl;
+                        type = static_cast<PipeType>(type | PipeType::PIPE_OUT);
+                    } else if(it == inlinePipedCmd.end() - 1){
+//                        std::cerr << "\tLast: " << cmd << " " << std::endl;
+                        type = static_cast<PipeType>(type | PipeType::PIPE_IN);
+                    } else {
+//                        std::cerr << "\tMiddle: " << cmd << " " << std::endl;
+                        type = static_cast<PipeType>(type | PipeType::PIPE_IN | PipeType::PIPE_OUT);
+                    }
+                    if(type & PipeType::PIPE_OUT) {
+                        pipe(nextPipe.data());
+                    }
+                }
+                forkProcess(cmdArg, prevPipe, nextPipe, type);
+                prevPipe = nextPipe;
+            } else {
+                std::cerr << "Unknown command: " << '[' << cmdArg[0] << ']' << std::endl;
+            }
+        }
     }
 }
 

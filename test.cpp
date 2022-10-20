@@ -3,23 +3,29 @@
 #include <string>
 using namespace std;
 int main() {
-    std::regex re = std::regex{R"(([^|!]+)(([\||!])(\d+))*)"};
-    string s = "removetag test.html !2 ls |1 number";
+    std::regex rgx = std::regex{R"(([\||!])(\d+))"};
+    string s = "ls | cat | number";
+    std::cout << s << std::endl;
+    std::regex_token_iterator<std::string::iterator> it(s.begin(),
+                                    s.end(),
+                                    rgx,
+                                    {-1, 1, 2});
     const std::regex_token_iterator<std::string::iterator> end_tokens;
-    std::regex_token_iterator<std::string::iterator> it(s.begin(), s.end(), re, {1, 3, 4});
-    std::vector<std::string> to_vector;
-    while (it != end_tokens)
-    {
-        to_vector.emplace_back(*it++);
-    }
-    int size = 0;
-    for(auto item: to_vector){
-        cout << size++ << " " << item << endl;
-    }
+    bool earlyBreak = false;
+    for(; it != end_tokens; ++it){
+        if(std::next(it, 1) == end_tokens || std::next(it, 2) == end_tokens) { earlyBreak = true; break; }
+        std::string cmd = *it++;
+        std::string pipe = *it++;
+        std::string numPipe = *it;
 
-    // Display the content of the vector
-//    std::copy(begin(to_vector),
-//              end(to_vector),
-//              std::ostream_iterator<std::string>(std::cout, "\n"));
+        size_t num = numPipe.empty() ? 0 : std::stoi(numPipe);
+        bool errPipe = pipe == "!";
+        std::cout << cmd << ", " << pipe << ", " << numPipe << ", " << std::endl;
+    }
+    if(it != end_tokens && earlyBreak) {
+        cerr << "early break" << endl;
+        std::string cmd = *it;
+        std::cout << cmd << ", " << std::endl;
+    }
     return 0;
 }
