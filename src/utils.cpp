@@ -1,7 +1,3 @@
-//
-// Created by as535364 on 2022/10/17.
-//
-
 #include "utils.h"
 
 void removeLeadingTrailingSpace(std::string &str) {
