@@ -82,7 +82,7 @@ void forkProcess(const std::vector<std::string> &cmdArg,
             close(pipeInFd[0]);
             close(pipeInFd[1]);
         }
-        if((type & PipeType::PIPE_OUT) == 0 || (type & PipeType::PIPE_ERR) == 0)
+        if((type & PipeType::PIPE_OUT) == 0)
             waitpid(childPid, nullptr, 0);
     }
 }
