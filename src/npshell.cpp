@@ -40,7 +40,7 @@ std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCn
         pipe(pipeFd);
         pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt + numPipe));
     } else { // if pipeFd already exist, use it to output
-        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
+//        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
         pipeFd[0] = it->pipeFd[0];
         pipeFd[1] = it->pipeFd[1];
     }
