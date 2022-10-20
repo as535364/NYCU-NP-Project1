@@ -155,7 +155,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                 forkProcess(cmdArg, prevPipe, nextPipe, type);
                 prevPipe = nextPipe;
             } else {
-                std::cerr << "Unknown command: " << '[' << cmdArg[0] << ']' << std::endl;
+                std::cerr << "Unknown command: " << '[' << cmdArg[0] << "]." << std::endl;
             }
         }
     }
