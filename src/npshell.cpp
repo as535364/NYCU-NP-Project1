@@ -40,7 +40,7 @@ std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCn
         pipe(pipeFd);
         pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt + numPipe));
     } else { // if pipeFd already exist, use it to output
-//        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
+        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
         pipeFd[0] = it->pipeFd[0];
         pipeFd[1] = it->pipeFd[1];
     }
@@ -53,7 +53,8 @@ std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCn
 }
 
 void forkProcess(const std::vector<std::string> &cmdArg,
-                 std::array<int, 2> &pipeInFd, std::array<int, 2> &pipeOutFd, PipeType type){
+                 std::array<int, 2> &pipeInFd, std::array<int, 2> &pipeOutFd, PipeType type,
+                 const std::string &fileName="") {
     pid_t childPid;
     while((childPid = fork()) == -1) { usleep(100); }
 
@@ -68,6 +69,7 @@ void forkProcess(const std::vector<std::string> &cmdArg,
         if(type & PipeType::PIPE_IN){
 //            std::cerr << "\tPIPE_IN: \"" << argv[0] << "\" used " << pipeInFd[0] << std::endl;
             dup2(pipeInFd[0], STDIN_FILENO);
+            close(pipeInFd[0]);
             close(pipeInFd[1]);
         }
         if(type & PipeType::PIPE_OUT){
@@ -79,6 +81,9 @@ void forkProcess(const std::vector<std::string> &cmdArg,
 //            std::cerr << "\tPIPE_ERR: \"" << argv[0] << "\" used " << pipeOutFd[1] << std::endl;
             dup2(pipeOutFd[1], STDERR_FILENO);
             // close(pipeOutFd[0]); it is closed when PIPE_OUT
+        }
+        if(!fileName.empty()){
+            freopen(fileName.c_str(), "w", stdout);
         }
         execvp(argv[0], argv);
         exit(0);
@@ -97,7 +102,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
     // number piped
     for(auto &lineCmd : lineCmds) {
         lineCnt++;
-//        std::cerr << lineCnt << " lineCmd: " << lineCmd.cmd << " |" << lineCmd.numPipe << std::endl;
+//        std::cerr << lineCnt << " lineCmd: " << lineCmd.cmd << "|!"[lineCmd.errPipe] << lineCmd.numPipe << std::endl;
         std::array<int, 2> pipeInFd = findPipeFd(pipeFdList, lineCnt);
         std::array<int, 2> pipeOutFd = {-1, -1};
 
@@ -134,6 +139,12 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                         type = static_cast<PipeType>(type | PipeType::PIPE_IN | PipeType::PIPE_OUT);
                     }
                 }
+                // redirection
+                std::string fileName;
+                if(cmd.find('>') != std::string::npos){
+                    fileName = cmdArg.back();
+                    cmdArg.pop_back(); cmdArg.pop_back(); // pop '>' and fil
+                }
                 // number pipe in
                 if(pipeInFd[0] != -1 && pipeInFd[1] != -1){
 //                    std::cerr << "\tOuter PIPE_IN: " << std::endl;
@@ -157,8 +168,9 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                 } else if(lineCmd.numPipe && (type & PipeType::PIPE_OUT)) {
                     nextPipe = pipeOutFd;
                 }
-
-                forkProcess(cmdArg, prevPipe, nextPipe, type);
+                forkProcess(cmdArg, prevPipe, nextPipe, type, fileName);
+                close(prevPipe[0]);
+                close(prevPipe[1]);
                 prevPipe = nextPipe;
             } else {
                 std::cerr << "Unknown command: " << '[' << cmdArg[0] << "]." << std::endl;
