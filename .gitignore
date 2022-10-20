@@ -79,19 +79,6 @@ Thumbs.db
 *.out
 *.app
 
-**/cmake-build-debug
-**/CMakeCache.txt
-**/cmake_install.cmake
-**/install_manifest.txt
-**/CMakeFiles/
-**/CTestTestfile.cmake
-**/Makefile
-**/*.cbp
-**/CMakeScripts
-**/compile_commands.json
-
-include/divisible/*
-
 
 ## Local
 
@@ -108,5 +95,4 @@ test/test_runner
 .vscode/*
 
 # binary files
-*.o
 npshell
