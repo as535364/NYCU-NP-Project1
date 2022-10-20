@@ -41,13 +41,13 @@ std::vector<CommandNumPipe> splitLineCmd(const std::string &s) {
         std::string numPipe = *it;
         size_t num = numPipe.empty() ? 0 : std::stoi(numPipe);
         bool errPipe = pipe == "!";
-        result.push_back(CommandNumPipe(cmd, num, errPipe));
+        result.emplace_back(cmd, num, errPipe);
 
     }
     if(it != endTokens && earlyBreak) {
         std::string cmd = *it;
         removeLeadingTrailingSpace(cmd);
-        result.push_back(CommandNumPipe(cmd, 0, false));
+        result.emplace_back(cmd, 0, false);
     }
     return result;
 }

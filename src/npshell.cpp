@@ -126,7 +126,6 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
         for(auto it = inlinePipedCmd.begin(); it != inlinePipedCmd.end(); ++it){
             std::string cmd = *it;
             std::vector<std::string> cmdArg =  split(cmd, ' ');
-            std::vector<std::string> cmdArg =  split(cmd, ' ');
             if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
                 const char *env_p = getenv(cmdArg[1].c_str());
                 if(env_p != nullptr)

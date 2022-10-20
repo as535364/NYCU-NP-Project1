@@ -6,11 +6,11 @@
 #define NP_PROJECT_1_NPSHELL_H
 
 struct pipeFdItem {
-    pipeFdItem(int pipeFd[2], size_t lineCnt) : line(lineCnt) {
+    pipeFdItem(const int pipeFd[2], size_t lineCnt) : line(lineCnt) {
         this->pipeFd[0] = pipeFd[0];
         this->pipeFd[1] = pipeFd[1];
     }
-    int pipeFd[2];
+    int pipeFd[2]{};
     size_t line;
 };
 
