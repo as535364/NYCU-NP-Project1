@@ -151,27 +151,29 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                     type = static_cast<PipeType>(type | PipeType::PIPE_IN);
                 }
                 // number pipe out
-                if(lineCmd.numPipe){
-                    // generate pipe and insert into list in correct pos
-                    pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
+                if(lineCmd.numPipe != 0 && it == inlinePipedCmd.end() - 1){
                     type = static_cast<PipeType>(type | PipeType::PIPE_OUT);
                 }
                 if(lineCmd.errPipe){
                     type = static_cast<PipeType>(type | PipeType::PIPE_ERR);
                 }
 
-                if(pipeInFd[0] != -1 && pipeInFd[1] != -1){
-                    prevPipe = pipeInFd;
+                if(pipeInFd[0] != -1 && pipeInFd[1] != -1 && it == inlinePipedCmd.begin()){
+                    prevPipe = pipeInFd; // first command to be piped in
                 }
-                if(!lineCmd.numPipe && (type & PipeType::PIPE_OUT)) {
+                if(it != inlinePipedCmd.end() - 1 && (type & PipeType::PIPE_OUT)) {
                     pipe(nextPipe.data());
-                } else if(lineCmd.numPipe && (type & PipeType::PIPE_OUT)) {
+                } else if(lineCmd.numPipe != 0 && (type & PipeType::PIPE_OUT)) {
+                    // generate pipe and insert into list in correct pos
+                    pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
                     nextPipe = pipeOutFd;
                 }
+//                std::cerr << "\t cmd: " << cmd << " prevPipe: " << prevPipe[0] << " " << prevPipe[1] << " nextPipe: " << nextPipe[0] << " " << nextPipe[1] << std::endl;
                 forkProcess(cmdArg, prevPipe, nextPipe, type, fileName);
                 close(prevPipe[0]);
                 close(prevPipe[1]);
                 prevPipe = nextPipe;
+//                std::cerr << "\t ggcmd: " << cmd << " prevPipe: " << prevPipe[0] << " " << prevPipe[1] << " nextPipe: " << nextPipe[0] << " " << nextPipe[1] << std::endl;
             } else {
                 std::cerr << "Unknown command: " << '[' << cmdArg[0] << "]." << std::endl;
             }
