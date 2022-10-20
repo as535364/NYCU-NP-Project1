@@ -27,14 +27,13 @@ std::vector<std::string> split(const std::string &s, char delim) {
 std::vector<CommandNumPipe> splitLineCmd(const std::string &s) {
     std::string tmp(s);
     std::vector<CommandNumPipe> result;
-
     std::regex rgx = std::regex{R"(([\||!])(\d+))"};
     std::regex_token_iterator<std::string::iterator> it(tmp.begin(),tmp.end(),rgx,{-1, 1, 2});
     const std::regex_token_iterator<std::string::iterator> endTokens;
 
     bool earlyBreak = false;
     for(; it != endTokens; ++it){
-        if(std::next(it, 1) == endTokens || std::next(it, 2) == endTokens) { earlyBreak = true; break; }
+        if(std::next(it, 1) == endTokens) { earlyBreak = true; break; }
         std::string cmd = *it++;
         removeLeadingTrailingSpace(cmd);
         std::string pipe = *it++;
