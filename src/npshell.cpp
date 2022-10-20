@@ -5,6 +5,7 @@
 #include <list>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include "npshell.h"
 #include "utils.h"
 
@@ -69,7 +70,6 @@ void forkProcess(const std::vector<std::string> &cmdArg,
         if(type & PipeType::PIPE_IN){
 //            std::cerr << "\tPIPE_IN: \"" << argv[0] << "\" used " << pipeInFd[0] << std::endl;
             dup2(pipeInFd[0], STDIN_FILENO);
-            close(pipeInFd[0]);
             close(pipeInFd[1]);
         }
         if(type & PipeType::PIPE_OUT){
@@ -183,6 +183,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
 }
 
 int main() {
+    signal(SIGCHLD, SIG_IGN);
     setenv("PATH","bin:.", 1);
     std::string s;
     size_t lineCnt = 0;
