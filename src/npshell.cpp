@@ -41,15 +41,15 @@ std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCn
         pipe(pipeFd);
         pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt + numPipe));
     } else { // if pipeFd already exist, use it to output
-        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
+//        std::cerr << "\tfound: " << it->pipeFd[0] << ' ' << it->pipeFd[1] << std::endl;
         pipeFd[0] = it->pipeFd[0];
         pipeFd[1] = it->pipeFd[1];
     }
-    std::cerr << "\tpipeFdList: ";
-    for(pipeFdItem &item : pipeFdList){
-        std::cerr << item.line << ' ' << item.pipeFd[0] << ' ' << item.pipeFd[1]  << ", ";
-    }
-    std::cerr << std::endl;
+//    std::cerr << "\tpipeFdList: ";
+//    for(pipeFdItem &item : pipeFdList){
+//        std::cerr << item.line << ' ' << item.pipeFd[0] << ' ' << item.pipeFd[1]  << ", ";
+//    }
+//    std::cerr << std::endl;
     return std::array<int, 2>{pipeFd[0], pipeFd[1]};
 }
 
@@ -125,6 +125,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
         std::array<int, 2> prevPipe = {-1, -1}, nextPipe = {-1, -1};
         for(auto it = inlinePipedCmd.begin(); it != inlinePipedCmd.end(); ++it){
             std::string cmd = *it;
+            std::vector<std::string> cmdArg =  split(cmd, ' ');
             std::vector<std::string> cmdArg =  split(cmd, ' ');
             if(cmdArg[0] == "printenv" && cmdArg.size() == 2) {
                 const char *env_p = getenv(cmdArg[1].c_str());

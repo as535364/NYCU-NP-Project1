@@ -48,7 +48,6 @@ std::vector<CommandNumPipe> splitLineCmd(const std::string &s) {
         std::string cmd = *it;
         removeLeadingTrailingSpace(cmd);
         result.push_back(CommandNumPipe(cmd, 0, false));
-        std::cout << cmd << ", " << std::endl;
     }
     return result;
 }
