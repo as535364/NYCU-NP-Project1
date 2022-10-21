@@ -5,7 +5,6 @@
 #include <list>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <signal.h>
 #include "npshell.h"
 #include "utils.h"
 
@@ -20,7 +19,7 @@ bool findExist(const std::string &cmd){
 
 // find out where is the pipeFd for output
 std::array<int, 2> findPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt){
-    auto it = std::find_if(pipeFdList.begin(), pipeFdList.end(), [&lineCnt](const pipeFdItem &item){
+    auto it = std::find_if(pipeFdList.begin(), pipeFdList.end(), [lineCnt](const pipeFdItem &item){
         return item.line == lineCnt;
     });
     if(it != pipeFdList.end()){
@@ -135,7 +134,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                 if(lineCmd.numPipe != 0 && it == inlinePipedCmd.end() - 1){
                     type = static_cast<PipeType>(type | PipeType::PIPE_OUT);
                 }
-                if(lineCmd.errPipe){
+                if(lineCmd.errPipe && it == inlinePipedCmd.end() - 1){
                     type = static_cast<PipeType>(type | PipeType::PIPE_ERR);
                 }
 
