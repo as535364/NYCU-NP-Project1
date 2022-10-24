@@ -31,14 +31,14 @@ std::array<int, 2> findPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt)
 }
 
 // number pipe: insert pipeFd to proper pos in list
-std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt, size_t numPipe) {
+std::array<int, 2> insertPipeFd(std::list<pipeFdItem> &pipeFdList, size_t lineCnt) {
     int pipeFd[2];
     auto it = pipeFdList.begin();
-    while(it != pipeFdList.end() && it->line < lineCnt + numPipe)
+    while(it != pipeFdList.end() && it->line < lineCnt)
         it++;
-    if(it -> line != lineCnt + numPipe) {
+    if(it -> line != lineCnt) {
         pipe(pipeFd);
-        pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt + numPipe));
+        pipeFdList.insert(it, pipeFdItem(pipeFd, lineCnt));
     } else { // if pipeFd already exist, use it to output
         pipeFd[0] = it->pipeFd[0];
         pipeFd[1] = it->pipeFd[1];
@@ -145,7 +145,7 @@ void processCmd(const std::string &inputCmd, size_t &lineCnt, std::list<pipeFdIt
                     pipe(nextPipe.data());
                 } else if(lineCmd.numPipe != 0 && (type & PipeType::PIPE_OUT)) {
                     // generate pipe and insert into list in correct pos
-                    pipeOutFd = insertPipeFd(pipeFdList, lineCnt, lineCmd.numPipe);
+                    pipeOutFd = insertPipeFd(pipeFdList, lineCnt + lineCmd.numPipe);
                     nextPipe = pipeOutFd;
                 }
                 forkProcess(cmdArg, prevPipe, nextPipe, type, fileName);
